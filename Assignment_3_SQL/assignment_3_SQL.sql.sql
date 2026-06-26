@@ -98,7 +98,8 @@ insert into order_log (order_id, customer_id, action, log_date) values
 (10, 10, 'Order Created', current_timestamp);
 
 create or replace function calculate_order_total(p_order_id int)
-returns numeric(10, 2) as $$
+returns numeric(10, 2) 
+as $$
 declare
 	total_price numeric(10, 2);
 begin
@@ -123,7 +124,7 @@ begin
 		insert into orders (customer_id, order_date, total_amount) values
 		(p_customer_id, current_timestamp, 0);
 	else
-		raise notice 'Clienst does not exist';
+		raise notice 'Client does not exist';
 	end if;
 end;
 $$;
@@ -142,7 +143,7 @@ declare
 	v_current_stock int;
 begin
 	if p_quantity <= 0 then
-		raise notice 'Qantity has to be higher then 0';
+		raise exception 'Qantity has to be higher then 0';
 	end if;
 
 	select price,
@@ -153,7 +154,7 @@ begin
 	where product_id = p_product_id;
 
 	if v_current_stock < p_quantity then
-		raise notice 'There are no items lefy';
+		raise exception 'There are no items lefy';
 	end if;
 
 	insert into order_items(order_id, product_id, quantity, price) values
@@ -170,10 +171,82 @@ call add_product_to_order(13, 1, 2)
 select *
 from products
 order by product_id
---test
+
+create or replace function update_order_total_trigger()
+returns trigger
+language plpgsql
+as $$
+begin
+	if TG_OP = 'DELETE' then
+		update orders
+		set total_amount = calculate_order_total(old.order_id)
+		where order_id = old.order_id;
+		return old;
+	else
+		update orders
+		set total_amount = calculate_order_total(new.order_id)
+		where order_id = new.order_id;
+		return new;
+	end if;
+end;
+$$;
+
+create trigger trigger_update_total
+after insert or update or delete
+on order_items
+for each row 
+execute function UPDATE_order_total_trigger()
+
+call add_product_to_order(13, 1, 2)
+
+select *
+from orders
+where order_id = 13
+
+create or replace function log_new_order_trigger()
+returns trigger
+language plpgsql
+as $$
+begin
+	insert into order_log (order_id, customer_id, action, log_date) values
+	(new.order_id, new.customer_id, 'Order Created', current_timestamp);
+	return new;
+end;
+$$;
+
+create trigger trigger_log_order
+after insert
+on orders
+for each row
+execute function log_new_order_trigger();
+
+call create_order(2);
+
+select *
+from order_log;
+
+insert into customers (full_name, email, balance) values
+('Yevheniia Krychun', 'yevheniia.krychun@gmail.com', 1000000.00);
+
+insert into products (product_name, price, stock_quantity) values 
+('Test Laptop', 250000.00, 10);
+
+call create_order(2);
+
+call add_product_to_order(17, 11, 2);
+
+select *
+from orders 
+where order_id = 17;
+
+select *
+from products 
+where product_id = 11;
+
+select *
+from order_log 
+order by log_date desc;
 
 
 
 
-
-	
