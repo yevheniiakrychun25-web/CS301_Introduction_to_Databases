@@ -247,6 +247,16 @@ select *
 from order_log 
 order by log_date desc;
 
+explain analyze
+select oi.order_id,
+	p.product_name,
+	oi.quantity,
+	oi.price,
+	oi.quantity * oi.price as item_total
+from order_items oi
+join products p
+on oi.product_id = p.product_id
+where oi.order_id = 1;
 
 
 
