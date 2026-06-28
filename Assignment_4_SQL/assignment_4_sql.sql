@@ -122,3 +122,13 @@ call change_user_subscription(1, 2);
 
 select *
 from users;
+
+create index idx_songs_album_id on songs(album_id);
+create index idx_albums_artist_id on albums(artist_id);
+create index idx_playlists_user_id on playlists(user_id);
+create index idx_playlist_songs_song_id on playlist_songs(song_id);
+
+explain analyze
+select *
+from songs
+where album_id = 4500;
